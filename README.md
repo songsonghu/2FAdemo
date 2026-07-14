@@ -11,16 +11,32 @@ C# .NET demo for **username/password + TOTP (Microsoft Authenticator)**.
 ## Run
 
 ```bash
+TWOFA_DEMO_SQLSERVER_CONNECTION="Server=localhost;Database=TwoFactorDemo;Trusted_Connection=True;TrustServerCertificate=True" \
 dotnet run --project /home/runner/work/2FAdemo/2FAdemo/TwoFactorDemo/TwoFactorDemo.csproj
 ```
 
-### 固定 secret（仅开发模式）
+## SQL Server 表设计
 
-设置开发环境变量后，程序会使用固定 TOTP secret，避免每次运行都要重新绑定 Authenticator：
+数据库脚本位于：
 
 ```bash
-DOTNET_ENVIRONMENT=Development dotnet run --project /home/runner/work/2FAdemo/2FAdemo/TwoFactorDemo/TwoFactorDemo.csproj
+/home/runner/work/2FAdemo/2FAdemo/TwoFactorDemo/Database/SqlServerSchema.sql
 ```
+
+核心表：
+
+- `dbo.Users`
+  - `UserId`：主键
+  - `Username`：唯一用户名（唯一索引）
+  - `PasswordSalt` / `PasswordHash`：密码哈希材料
+  - `TotpSecret`：每个用户独立 TOTP secret
+  - `CreatedAtUtc` / `UpdatedAtUtc` / `TotpSecretUpdatedAtUtc`：审计时间
+
+## 业务规则
+
+- 每个用户注册时生成自己的 `TotpSecret`，不同用户 secret 不同。
+- 同一个用户重复登录/再次运行程序时，secret 保持不变。
+- 只有用户选择“重置认证器”时，才会更新该用户的 `TotpSecret`。
 
 ## Test
 
