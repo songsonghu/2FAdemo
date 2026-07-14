@@ -2,30 +2,43 @@ using TwoFactorDemo;
 
 namespace TwoFactorDemo.Tests;
 
-public class DemoSecretProviderTests
+public class UserRegistrationTests
 {
     [Fact]
-    public void ResolveSecret_ReturnsFixedSecret_InDevelopment()
+    public void RegisterUser_CreatesNewUser_WithSecret()
     {
-        var secret = DemoSecretProvider.ResolveSecret("Development");
+        var sut = new AuthenticationService();
 
-        Assert.Equal(DemoSecretProvider.DevelopmentFixedSecret, secret);
+        var result = sut.RegisterUser("demo", "P@ssw0rd123!");
+
+        Assert.True(result.IsNewUser);
+        Assert.False(string.IsNullOrWhiteSpace(result.Secret));
     }
 
     [Fact]
-    public void ResolveSecret_ReturnsFixedSecret_InDevelopmentCaseInsensitive()
+    public void RegisterUser_DoesNotRotateSecret_ForExistingUser()
     {
-        var secret = DemoSecretProvider.ResolveSecret("development");
+        var sut = new AuthenticationService();
+        var first = sut.RegisterUser("demo", "P@ssw0rd123!");
 
-        Assert.Equal(DemoSecretProvider.DevelopmentFixedSecret, secret);
+        var second = sut.RegisterUser("demo", "P@ssw0rd123!");
+
+        Assert.True(first.IsNewUser);
+        Assert.False(second.IsNewUser);
+        Assert.Null(second.Secret);
+        Assert.NotNull(first.Secret);
+        var code = TotpAuthenticator.GenerateCode(first.Secret!, DateTimeOffset.FromUnixTimeSeconds(59));
+        Assert.True(sut.ValidateTotp("demo", code, DateTimeOffset.FromUnixTimeSeconds(59)));
     }
 
     [Fact]
-    public void ResolveSecret_ReturnsGeneratedSecret_OutsideDevelopment()
+    public void ResetTotpSecret_ChangesSecret()
     {
-        var secret = DemoSecretProvider.ResolveSecret("Production");
+        var sut = new AuthenticationService();
+        var register = sut.RegisterUser("demo", "P@ssw0rd123!");
 
-        Assert.NotEqual(DemoSecretProvider.DevelopmentFixedSecret, secret);
-        Assert.False(string.IsNullOrWhiteSpace(secret));
+        var newSecret = sut.ResetTotpSecret("demo");
+
+        Assert.NotEqual(register.Secret, newSecret);
     }
 }
